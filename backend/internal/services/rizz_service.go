@@ -34,6 +34,11 @@ func (s *RizzService) GenerateResponses(userID uuid.UUID, inputText, tone, categ
 		streak.FreeUsesToday = 0
 	}
 
+	// TODO: skip this check for premium subscribers
+	if streak.FreeUsesToday >= 5 {
+		return nil, errors.New("daily free limit reached")
+	}
+
 	// For MVP: Generate template-based responses (replace with actual AI API later)
 	responses := s.generateTemplateResponses(inputText, tone)
 

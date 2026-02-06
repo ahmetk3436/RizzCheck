@@ -40,6 +40,12 @@ func (h *RizzHandler) Generate(c *fiber.Ctx) error {
 
 	response, err := h.service.GenerateResponses(userID, req.InputText, req.Tone, req.Category)
 	if err != nil {
+		if err.Error() == "daily free limit reached" {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error":       err.Error(),
+				"limit_reached": true,
+			})
+		}
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
