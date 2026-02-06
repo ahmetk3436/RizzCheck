@@ -21,7 +21,7 @@ type GenerateRequest struct {
 }
 
 func (h *RizzHandler) Generate(c *fiber.Ctx) error {
-	userID, err := uuid.Parse(c.Locals("userId").(string))
+	userID, err := extractUserID(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid user"})
 	}
@@ -50,7 +50,7 @@ func (h *RizzHandler) Generate(c *fiber.Ctx) error {
 }
 
 func (h *RizzHandler) GetStats(c *fiber.Ctx) error {
-	userID, err := uuid.Parse(c.Locals("userId").(string))
+	userID, err := extractUserID(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid user"})
 	}
@@ -64,7 +64,7 @@ func (h *RizzHandler) GetStats(c *fiber.Ctx) error {
 }
 
 func (h *RizzHandler) GetHistory(c *fiber.Ctx) error {
-	userID, err := uuid.Parse(c.Locals("userId").(string))
+	userID, err := extractUserID(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid user"})
 	}
@@ -90,7 +90,7 @@ type SelectRequest struct {
 }
 
 func (h *RizzHandler) SelectResponse(c *fiber.Ctx) error {
-	userID, err := uuid.Parse(c.Locals("userId").(string))
+	userID, err := extractUserID(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid user"})
 	}
