@@ -31,6 +31,7 @@ func Setup(
 	// Auth (protected)
 	protected := api.Group("", middleware.JWTProtected(cfg))
 	protected.Post("/auth/logout", authHandler.Logout)
+	protected.Post("/auth/claim", authHandler.ClaimGuest)
 	protected.Delete("/auth/account", authHandler.DeleteAccount) // Account deletion (Guideline 5.1.1)
 
 	// Moderation - User endpoints (protected)
