@@ -46,8 +46,7 @@ func Setup(
 	rizz.Post("/select", rizzHandler.SelectResponse)
 
 	// Admin moderation panel (protected + admin check)
-	// In production, add an admin role middleware here
-	admin := api.Group("/admin", middleware.JWTProtected(cfg))
+	admin := api.Group("/admin", middleware.JWTProtected(cfg), middleware.AdminOnly(cfg))
 	admin.Get("/moderation/reports", moderationHandler.ListReports)
 	admin.Put("/moderation/reports/:id", moderationHandler.ActionReport)
 

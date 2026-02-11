@@ -9,18 +9,18 @@ import (
 
 // RizzResponse represents a generated AI response
 type RizzResponse struct {
-	ID           uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	UserID       uuid.UUID      `gorm:"type:uuid;index" json:"user_id"`
-	InputText    string         `gorm:"type:text;not null" json:"input_text"`
-	Tone         string         `gorm:"type:varchar(30);not null" json:"tone"`
-	Response1    string         `gorm:"type:text" json:"response_1"`
-	Response2    string         `gorm:"type:text" json:"response_2"`
-	Response3    string         `gorm:"type:text" json:"response_3"`
-	SelectedIdx  int            `gorm:"default:-1" json:"selected_idx"`
-	Category     string         `gorm:"type:varchar(30)" json:"category"` // dating, work, casual, family
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+	ID          uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	UserID      uuid.UUID      `gorm:"type:uuid;index" json:"user_id"`
+	InputText   string         `gorm:"type:text;not null" json:"input_text"`
+	Tone        string         `gorm:"type:varchar(30);not null" json:"tone"`
+	Response1   string         `gorm:"type:text" json:"response_1"`
+	Response2   string         `gorm:"type:text" json:"response_2"`
+	Response3   string         `gorm:"type:text" json:"response_3"`
+	SelectedIdx int            `gorm:"default:-1" json:"selected_idx"`
+	Category    string         `gorm:"type:varchar(30)" json:"category"` // dating, work, casual, family
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // RizzStreak tracks daily usage

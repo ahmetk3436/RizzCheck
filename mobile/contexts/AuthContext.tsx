@@ -13,6 +13,8 @@ import {
   getRefreshToken,
 } from '../lib/storage';
 import { hapticSuccess, hapticError } from '../lib/haptics';
+import { logInPurchases, logOutPurchases } from '../lib/purchases';
+import { analyticsEvents, trackEvent } from '../lib/analytics';
 import type { User, AuthResponse } from '../types/auth';
 
 interface AuthContextType {
@@ -36,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Restore session on mount
   useEffect(() => {
+    trackEvent(analyticsEvents.appOpened);
     const restore = async () => {
       try {
         const token = await getAccessToken();
@@ -43,7 +46,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const { data } = await api.get('/health');
           if (data.status === 'ok') {
             const payload = JSON.parse(atob(token.split('.')[1]));
-            setUser({ id: payload.sub, email: payload.email });
+            const restoredUser = { id: payload.sub, email: payload.email };
+            setUser(restoredUser);
+            await logInPurchases(restoredUser.id);
           }
         }
       } catch {
@@ -63,6 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       await setTokens(data.access_token, data.refresh_token);
       setUser(data.user);
+      await logInPurchases(data.user.id);
+      trackEvent(analyticsEvents.authLoginSuccess);
       hapticSuccess();
     } catch (err) {
       hapticError();
@@ -78,6 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       await setTokens(data.access_token, data.refresh_token);
       setUser(data.user);
+      await logInPurchases(data.user.id);
+      trackEvent(analyticsEvents.authRegisterSuccess);
       hapticSuccess();
     } catch (err) {
       hapticError();
@@ -97,6 +106,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         await setTokens(data.access_token, data.refresh_token);
         setUser(data.user);
+        await logInPurchases(data.user.id);
+        trackEvent(analyticsEvents.authAppleSuccess);
         hapticSuccess();
       } catch (err) {
         hapticError();
@@ -115,8 +126,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignore logout API errors
     } finally {
+      await logOutPurchases();
       await clearTokens();
       setUser(null);
+      trackEvent(analyticsEvents.authLogout);
     }
   }, []);
 
@@ -126,8 +139,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await api.delete('/auth/account', {
         data: { password: password || '' },
       });
+      await logOutPurchases();
       await clearTokens();
       setUser(null);
+      trackEvent(analyticsEvents.authDeleteAccount);
       hapticSuccess();
     },
     []

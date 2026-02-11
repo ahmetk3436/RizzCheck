@@ -42,7 +42,7 @@ func main() {
 	authService := services.NewAuthService(database.DB, cfg)
 	subscriptionService := services.NewSubscriptionService(database.DB)
 	moderationService := services.NewModerationService(database.DB)
-	rizzService := services.NewRizzService(database.DB)
+	rizzService := services.NewRizzService(database.DB, cfg)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler(authService)

@@ -35,6 +35,25 @@ func Connect(cfg *config.Config) error {
 }
 
 func Migrate() error {
+	// Backward-compatible schema fix: older versions had subscriptions.user_id NOT NULL.
+	// We now allow nullable UserID because RevenueCat webhooks can arrive before we can
+	// reliably link an app_user_id to an internal user UUID.
+	_ = DB.Exec(`
+DO $$
+BEGIN
+	IF EXISTS (
+		SELECT 1
+		FROM information_schema.columns
+		WHERE table_name = 'subscriptions' AND column_name = 'user_id'
+	) THEN
+		ALTER TABLE subscriptions ALTER COLUMN user_id DROP NOT NULL;
+	END IF;
+EXCEPTION
+	WHEN undefined_table THEN
+		NULL;
+END $$;
+`).Error
+
 	err := DB.AutoMigrate(
 		&models.User{},
 		&models.RefreshToken{},
