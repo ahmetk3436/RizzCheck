@@ -3,6 +3,7 @@ export const analyticsEvents = {
   authLoginSuccess: 'auth_login_success',
   authRegisterSuccess: 'auth_register_success',
   authAppleSuccess: 'auth_apple_success',
+  authGuestStarted: 'auth_guest_started',
   authLogout: 'auth_logout',
   authDeleteAccount: 'auth_delete_account',
   rizzGenerateRequested: 'rizz_generate_requested',

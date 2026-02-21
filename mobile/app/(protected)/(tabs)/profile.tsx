@@ -18,17 +18,22 @@ import { hapticSelection } from '../../../lib/haptics';
 import { analyticsEvents, trackEvent } from '../../../lib/analytics';
 import { shareAppInvite } from '../../../lib/share';
 
-const APP_STORE_URL = 'https://apps.apple.com/app/rizzcheck/id0000000000';
+const APP_STORE_URL = 'https://apps.apple.com/app/rizzcheck';
 
 export default function ProfileScreen() {
-  const { user } = useAuth();
+  const { user, isGuest, guestUsageCount } = useAuth();
   const { isSubscribed } = useSubscription();
   const [stats, setStats] = useState<RizzStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isGuest) {
+      setStats(null);
+      setLoading(false);
+      return;
+    }
     fetchStats();
-  }, []);
+  }, [isGuest]);
 
   const fetchStats = async () => {
     try {
@@ -41,12 +46,14 @@ export default function ProfileScreen() {
     }
   };
 
-  const rizzScore = stats
-    ? Math.min(999, stats.total_rizzes * 10 + stats.longest_streak * 5)
-    : 0;
-  const initial = user?.email?.[0]?.toUpperCase() || '?';
+  const rizzScore = isGuest
+    ? guestUsageCount * 20
+    : (stats ? Math.min(999, stats.total_rizzes * 10 + stats.longest_streak * 5) : 0);
+  const initial = isGuest ? 'G' : (user?.email?.[0]?.toUpperCase() || '?');
   const rizzLevel =
-    rizzScore < 100
+    isGuest
+      ? 'Preview User'
+      : rizzScore < 100
       ? 'Beginner'
       : rizzScore < 300
         ? 'Rising Star'
@@ -79,9 +86,15 @@ export default function ProfileScreen() {
             >
               <Text className="text-3xl font-bold text-white">{initial}</Text>
             </LinearGradient>
-            <Text className="mt-4 text-xl font-bold text-white">{user?.email}</Text>
+            <Text className="mt-4 text-xl font-bold text-white">
+              {isGuest ? 'Guest Mode' : user?.email}
+            </Text>
             <View className="mt-2">
-              {isSubscribed ? (
+              {isGuest ? (
+                <View className="rounded-xl bg-amber-400/15 px-3 py-1.5">
+                  <Text className="text-xs font-semibold text-amber-300">Guest Preview</Text>
+                </View>
+              ) : isSubscribed ? (
                 <LinearGradient
                   colors={['#ec4899', '#a855f7']}
                   style={{ borderRadius: 12, paddingHorizontal: 14, paddingVertical: 5 }}
@@ -131,42 +144,74 @@ export default function ProfileScreen() {
 
           {/* Stats Grid */}
           <View className="mx-3.5 mb-5 flex-row flex-wrap">
-            <StatCard
-              icon="flash"
-              label="Total Rizzes"
-              value={stats?.total_rizzes?.toString() || '0'}
-              color="#ec4899"
-            />
-            <StatCard
-              icon="flame"
-              label="Current Streak"
-              value={stats?.current_streak?.toString() || '0'}
-              color="#f59e0b"
-              suffix=" days"
-            />
-            <StatCard
-              icon="trophy"
-              label="Best Streak"
-              value={stats?.longest_streak?.toString() || '0'}
-              color="#a855f7"
-              suffix=" days"
-            />
-            <StatCard
-              icon="today"
-              label="Used Today"
-              value={stats?.free_uses_today?.toString() || '0'}
-              color="#22c55e"
-              suffix="/5"
-            />
+            {isGuest ? (
+              <>
+                <StatCard
+                  icon="sparkles"
+                  label="Preview Uses"
+                  value={guestUsageCount.toString()}
+                  color="#f59e0b"
+                />
+                <StatCard
+                  icon="checkmark-circle-outline"
+                  label="Uses Left"
+                  value={Math.max(0, 3 - guestUsageCount).toString()}
+                  color="#22c55e"
+                  suffix="/3"
+                />
+                <StatCard
+                  icon="flash"
+                  label="Rizz Score"
+                  value={rizzScore.toString()}
+                  color="#ec4899"
+                />
+                <StatCard
+                  icon="person-add-outline"
+                  label="Account"
+                  value="Free"
+                  color="#a855f7"
+                />
+              </>
+            ) : (
+              <>
+                <StatCard
+                  icon="flash"
+                  label="Total Rizzes"
+                  value={stats?.total_rizzes?.toString() || '0'}
+                  color="#ec4899"
+                />
+                <StatCard
+                  icon="flame"
+                  label="Current Streak"
+                  value={stats?.current_streak?.toString() || '0'}
+                  color="#f59e0b"
+                  suffix=" days"
+                />
+                <StatCard
+                  icon="trophy"
+                  label="Best Streak"
+                  value={stats?.longest_streak?.toString() || '0'}
+                  color="#a855f7"
+                  suffix=" days"
+                />
+                <StatCard
+                  icon="today"
+                  label="Used Today"
+                  value={stats?.free_uses_today?.toString() || '0'}
+                  color="#22c55e"
+                  suffix="/5"
+                />
+              </>
+            )}
           </View>
 
           {/* Upgrade Banner */}
-          {!isSubscribed && (
+          {(isGuest || !isSubscribed) && (
             <TouchableOpacity
               className="mx-5 mb-5"
               onPress={() => {
                 hapticSelection();
-                router.push('/(protected)/paywall');
+                router.push(isGuest ? '/(auth)/register' : '/(protected)/paywall');
               }}
               activeOpacity={0.8}
             >
@@ -179,17 +224,19 @@ export default function ProfileScreen() {
                 <View className="flex-row items-center justify-between rounded-[22px] bg-[#12121f] p-5">
                   <View className="flex-1">
                     <Text className="text-base font-bold text-white">
-                      Unlock Unlimited Rizz
+                      {isGuest ? 'Create Your Free Account' : 'Unlock Unlimited Rizz'}
                     </Text>
                     <Text className="mt-1 text-sm text-gray-400">
-                      Remove limits & get all features
+                      {isGuest
+                        ? 'Save your history and unlock daily AI credits.'
+                        : 'Remove limits & get all features'}
                     </Text>
                   </View>
                   <LinearGradient
                     colors={['#ec4899', '#a855f7']}
                     style={{ borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10 }}
                   >
-                    <Text className="text-sm font-bold text-white">Upgrade</Text>
+                    <Text className="text-sm font-bold text-white">{isGuest ? 'Sign Up' : 'Upgrade'}</Text>
                   </LinearGradient>
                 </View>
               </LinearGradient>
@@ -216,11 +263,11 @@ export default function ProfileScreen() {
               />
               <ActionRow
                 icon="diamond-outline"
-                label="Manage Subscription"
+                label={isGuest ? 'Create Account' : 'Manage Subscription'}
                 color="#ec4899"
                 onPress={() => {
                   hapticSelection();
-                  router.push('/(protected)/paywall');
+                  router.push(isGuest ? '/(auth)/register' : '/(protected)/paywall');
                 }}
               />
               <ActionRow

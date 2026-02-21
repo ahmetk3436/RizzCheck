@@ -12,5 +12,7 @@ export interface AuthResponse {
 export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
+  isGuest: boolean;
+  guestUsageCount: number;
   user: User | null;
 }

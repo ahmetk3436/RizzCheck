@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform } from 'react-native';
-import { Link } from 'expo-router';
+import { View, Text, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import { Link, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import AppleSignInButton from '../../components/ui/AppleSignInButton';
+import { hapticSelection } from '../../lib/haptics';
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const router = useRouter();
+  const { login, continueAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -19,78 +22,88 @@ export default function LoginScreen() {
       setError('Please fill in all fields');
       return;
     }
-
     setIsLoading(true);
     try {
       await login(email, password);
     } catch (err: any) {
-      setError(
-        err.response?.data?.message || 'Login failed. Please try again.'
-      );
+      setError(err.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleGuestMode = async () => {
+    hapticSelection();
+    await continueAsGuest();
+    router.replace('/(protected)/(tabs)');
+  };
+
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View className="flex-1 justify-center px-8">
-        <Text className="mb-2 text-3xl font-bold text-gray-900">
-          Welcome back
-        </Text>
-        <Text className="mb-8 text-base text-gray-500">
-          Sign in to your account
-        </Text>
-
-        {error ? (
-          <View className="mb-4 rounded-lg bg-red-50 p-3">
-            <Text className="text-sm text-red-600">{error}</Text>
+    <LinearGradient colors={['#0a0a14', '#1e1e2e', '#2d1b3d']} style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View className="flex-1 justify-center px-8">
+          <View className="mb-10 items-center">
+            <Text className="text-5xl">💬</Text>
+            <Text className="mt-3 text-4xl font-bold text-white">RizzCheck</Text>
+            <Text className="mt-2 text-base text-gray-400">AI-powered texting assistant</Text>
           </View>
-        ) : null}
 
-        <View className="mb-4">
-          <Input
-            label="Email"
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            textContentType="emailAddress"
-          />
+          {error ? (
+            <View className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+              <Text className="text-center text-sm text-red-400">{error}</Text>
+            </View>
+          ) : null}
+
+          <View className="mb-4">
+            <Input
+              label="Email"
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              dark
+            />
+          </View>
+
+          <View className="mb-6">
+            <Input
+              label="Password"
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              textContentType="password"
+              dark
+            />
+          </View>
+
+          <Button title="Sign In" onPress={handleLogin} isLoading={isLoading} size="lg" variant="gradient" />
+
+          <AppleSignInButton onError={(msg) => setError(msg)} />
+
+          <Pressable
+            className="mt-5 items-center py-2"
+            onPress={handleGuestMode}
+          >
+            <Text className="text-base font-medium text-gray-400">Try Free Without Account</Text>
+            <Text className="mt-1 text-xs text-gray-600">3 preview generations included</Text>
+          </Pressable>
+
+          <View className="mt-8 flex-row items-center justify-center">
+            <Text className="text-gray-500">Don't have an account? </Text>
+            <Link href="/(auth)/register" asChild>
+              <Pressable>
+                <Text className="font-semibold text-primary-400">Sign Up</Text>
+              </Pressable>
+            </Link>
+          </View>
         </View>
-
-        <View className="mb-6">
-          <Input
-            label="Password"
-            placeholder="Your password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="password"
-          />
-        </View>
-
-        <Button
-          title="Sign In"
-          onPress={handleLogin}
-          isLoading={isLoading}
-          size="lg"
-        />
-
-        {/* Sign in with Apple — equal visual prominence (Guideline 4.8) */}
-        <AppleSignInButton onError={(msg) => setError(msg)} />
-
-        <View className="mt-6 flex-row items-center justify-center">
-          <Text className="text-gray-500">Don't have an account? </Text>
-          <Link href="/(auth)/register" asChild>
-            <Text className="font-semibold text-primary-600">Sign Up</Text>
-          </Link>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }

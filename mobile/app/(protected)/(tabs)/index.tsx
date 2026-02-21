@@ -19,6 +19,8 @@ import { hapticSuccess, hapticSelection, hapticError } from '../../../lib/haptic
 import { analyticsEvents, trackEvent } from '../../../lib/analytics';
 import { shareResponseCard } from '../../../lib/share';
 import { TONES, CATEGORIES, RizzStats } from '../../../types/rizz';
+import { useAuth } from '../../../contexts/AuthContext';
+import { normalizeGuestRizzResponse, saveGuestRizzHistory } from '../../../lib/guestRizzHistory';
 
 const TONE_COLORS: Record<string, [string, string]> = {
   flirty: ['#ec4899', '#f472b6'],
@@ -31,9 +33,65 @@ const TONE_COLORS: Record<string, [string, string]> = {
   mysterious: ['#6366f1', '#818cf8'],
 };
 
-const APP_STORE_URL = 'https://apps.apple.com/app/rizzcheck/id0000000000';
+const APP_STORE_URL = 'https://apps.apple.com/app/rizzcheck';
+const GUEST_PREVIEW_LIMIT = 3;
+
+const GUEST_TONE_TEMPLATES: Record<string, [string, string, string]> = {
+  flirty: [
+    'Cute energy. Try this:',
+    'Flirty but smooth option:',
+    'Confident closer:',
+  ],
+  professional: [
+    'Polished reply:',
+    'Professional follow-up:',
+    'Clear and respectful version:',
+  ],
+  funny: [
+    'Light joke version:',
+    'Playful response:',
+    'Short funny comeback:',
+  ],
+  chill: [
+    'Easy-going reply:',
+    'Natural tone option:',
+    'Simple confident line:',
+  ],
+  savage: [
+    'Sharp response:',
+    'Bold comeback:',
+    'Savage but clean option:',
+  ],
+  romantic: [
+    'Warm romantic line:',
+    'Soft and thoughtful reply:',
+    'Sweet closer:',
+  ],
+  confident: [
+    'Confident response:',
+    'Direct option:',
+    'Strong closer:',
+  ],
+  mysterious: [
+    'Low-key mysterious reply:',
+    'Curious tone option:',
+    'Short enigmatic closer:',
+  ],
+};
+
+function buildGuestResponses(input: string, tone: string, category: string): string[] {
+  const templates = GUEST_TONE_TEMPLATES[tone] ?? GUEST_TONE_TEMPLATES.chill;
+  const cleaned = input.replace(/\s+/g, ' ').trim();
+  const preview = cleaned.length > 90 ? `${cleaned.slice(0, 87)}...` : cleaned;
+  return [
+    `${templates[0]} "${preview}"`,
+    `${templates[1]} Keep it ${tone} and relevant to ${category}.`,
+    `${templates[2]} Send this if you want a clean finish.`,
+  ];
+}
 
 export default function HomeScreen() {
+  const { isGuest, guestUsageCount, canUseFeature, incrementGuestUsage } = useAuth();
   const [inputText, setInputText] = useState('');
   const [selectedTone, setSelectedTone] = useState('chill');
   const [selectedCategory, setSelectedCategory] = useState('casual');
@@ -46,8 +104,13 @@ export default function HomeScreen() {
   const fadeAnims = useRef<Animated.Value[]>([]).current;
 
   useEffect(() => {
+    if (isGuest) {
+      setStats(null);
+      setLimitReached(!canUseFeature());
+      return;
+    }
     fetchStats();
-  }, []);
+  }, [isGuest, guestUsageCount, canUseFeature]);
 
   useEffect(() => {
     if (inputText.length >= 5 && !loading) {
@@ -90,16 +153,76 @@ export default function HomeScreen() {
       hapticError();
       return;
     }
+
+    if (isGuest && !canUseFeature()) {
+      setLimitReached(true);
+      trackEvent(analyticsEvents.rizzLimitReached, {
+        tone: selectedTone,
+        category: selectedCategory,
+        mode: 'guest',
+      });
+      Alert.alert(
+        'Guest Preview Limit Reached',
+        'Create a free account to keep generating AI responses and unlock daily free credits.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Create Account', onPress: () => router.push('/(auth)/register') },
+        ]
+      );
+      return;
+    }
+
     trackEvent(analyticsEvents.rizzGenerateRequested, {
       input_length: inputText.length,
       tone: selectedTone,
       category: selectedCategory,
+      mode: isGuest ? 'guest' : 'authenticated',
     });
     hapticSelection();
     setLoading(true);
     setResponses([]);
     setLimitReached(false);
     try {
+      if (isGuest) {
+        let guestResponses: string[] = [];
+        let guestResponsePayload: any = null;
+        try {
+          const res = await api.post('/rizz/generate', {
+            input_text: inputText,
+            tone: selectedTone,
+            category: selectedCategory,
+          });
+          guestResponses = res.data.responses || [];
+          guestResponsePayload = res.data.response || null;
+        } catch {
+          // Fallback keeps guest preview functional even if guest backend auth/session fails.
+          guestResponses = buildGuestResponses(inputText, selectedTone, selectedCategory);
+        }
+
+        const guestHistoryEntry = normalizeGuestRizzResponse({
+          ...(guestResponsePayload || {}),
+          input_text: inputText.trim(),
+          tone: selectedTone,
+          category: selectedCategory,
+          responses: guestResponses,
+          created_at: guestResponsePayload?.created_at || new Date().toISOString(),
+        });
+
+        setResponses(guestResponses);
+        animateResponses(guestResponses.length);
+        await saveGuestRizzHistory(guestHistoryEntry);
+        const usageCount = await incrementGuestUsage();
+        setLimitReached(usageCount >= GUEST_PREVIEW_LIMIT);
+        hapticSuccess();
+        trackEvent(analyticsEvents.rizzGenerateSucceeded, {
+          tone: selectedTone,
+          category: selectedCategory,
+          response_count: guestResponses.length,
+          mode: 'guest',
+        });
+        return;
+      }
+
       const res = await api.post('/rizz/generate', {
         input_text: inputText,
         tone: selectedTone,
@@ -113,6 +236,7 @@ export default function HomeScreen() {
         tone: selectedTone,
         category: selectedCategory,
         response_count: newResponses.length,
+        mode: 'authenticated',
       });
       fetchStats();
     } catch (err: any) {
@@ -122,11 +246,13 @@ export default function HomeScreen() {
         trackEvent(analyticsEvents.rizzLimitReached, {
           tone: selectedTone,
           category: selectedCategory,
+          mode: 'authenticated',
         });
         fetchStats();
       } else {
         trackEvent(analyticsEvents.rizzGenerateFailed, {
           status_code: err.response?.status || 0,
+          mode: isGuest ? 'guest' : 'authenticated',
         });
         Alert.alert('Error', 'Something went wrong. Try again.');
       }
@@ -168,8 +294,10 @@ export default function HomeScreen() {
     }
   };
 
-  const freeUsesLeft = stats ? Math.max(0, 5 - stats.free_uses_today) : 5;
-  const usagePercent = stats ? (stats.free_uses_today / 5) * 100 : 0;
+  const usageLimit = isGuest ? GUEST_PREVIEW_LIMIT : 5;
+  const usageUsed = isGuest ? guestUsageCount : (stats?.free_uses_today || 0);
+  const freeUsesLeft = Math.max(0, usageLimit - usageUsed);
+  const usagePercent = (usageUsed / usageLimit) * 100;
 
   return (
     <LinearGradient colors={['#0a0a14', '#12121f', '#1a1a2e']} style={{ flex: 1 }}>
@@ -194,12 +322,25 @@ export default function HomeScreen() {
               </View>
             </View>
 
+            {isGuest && (
+              <View className="mb-5 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3">
+                <Text className="text-sm font-semibold text-amber-300">
+                  Guest Preview Mode
+                </Text>
+                <Text className="mt-1 text-xs text-amber-200/80">
+                  3 free previews without account. Create a free account for full AI results.
+                </Text>
+              </View>
+            )}
+
             {/* Usage Bar */}
             <View className="mb-5 rounded-2xl border border-white/[0.06] p-4" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
               <View className="mb-2 flex-row items-center justify-between">
-                <Text className="text-xs font-semibold text-gray-500">Daily Free Uses</Text>
+                <Text className="text-xs font-semibold text-gray-500">
+                  {isGuest ? 'Guest Preview Uses' : 'Daily Free Uses'}
+                </Text>
                 <View className="flex-row items-center">
-                  {stats && stats.current_streak > 0 && (
+                  {!isGuest && stats && stats.current_streak > 0 && (
                     <View className="mr-3 flex-row items-center">
                       <Text className="text-sm">🔥</Text>
                       <Text className="ml-1 text-xs font-semibold text-orange-400">
@@ -224,6 +365,10 @@ export default function HomeScreen() {
             {limitReached && (
               <TouchableOpacity
                 onPress={() => {
+                  if (isGuest) {
+                    router.push('/(auth)/register');
+                    return;
+                  }
                   trackEvent(analyticsEvents.paywallViewed, { source: 'limit_banner' });
                   router.push('/(protected)/paywall');
                 }}
@@ -238,14 +383,22 @@ export default function HomeScreen() {
                 >
                   <View className="flex-row items-center justify-between rounded-[19px] bg-[#12121f] px-5 py-4">
                     <View className="flex-1">
-                      <Text className="text-base font-bold text-white">Daily limit reached</Text>
-                      <Text className="mt-1 text-sm text-gray-400">Upgrade for unlimited rizz</Text>
+                      <Text className="text-base font-bold text-white">
+                        {isGuest ? 'Guest preview complete' : 'Daily limit reached'}
+                      </Text>
+                      <Text className="mt-1 text-sm text-gray-400">
+                        {isGuest
+                          ? 'Create a free account to continue.'
+                          : 'Upgrade for unlimited rizz'}
+                      </Text>
                     </View>
                     <LinearGradient
                       colors={['#ec4899', '#a855f7']}
                       style={{ borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 }}
                     >
-                      <Text className="text-sm font-bold text-white">Upgrade</Text>
+                      <Text className="text-sm font-bold text-white">
+                        {isGuest ? 'Sign Up' : 'Upgrade'}
+                      </Text>
                     </LinearGradient>
                   </View>
                 </LinearGradient>
@@ -405,7 +558,9 @@ export default function HomeScreen() {
                     </View>
                   ) : (
                     <Text className="text-center text-lg font-bold text-white">
-                      {limitReached ? 'Upgrade to Continue' : 'Generate Rizz ✨'}
+                      {limitReached
+                        ? (isGuest ? 'Create Free Account' : 'Upgrade to Continue')
+                        : 'Generate Rizz ✨'}
                     </Text>
                   )}
                 </LinearGradient>
@@ -419,6 +574,13 @@ export default function HomeScreen() {
                   <Ionicons name="sparkles" size={18} color="#a855f7" />
                   <Text className="ml-2 text-lg font-bold text-white">Your responses</Text>
                 </View>
+                {isGuest && (
+                  <View className="mb-3 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2">
+                    <Text className="text-xs text-amber-200">
+                      Guest previews are simplified. Create a free account for full personalized AI responses.
+                    </Text>
+                  </View>
+                )}
                 {responses.map((response, idx) => {
                   const fadeAnim = fadeAnims[idx] || new Animated.Value(1);
                   return (

@@ -32,13 +32,13 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 
-const APP_STORE_URL = 'https://apps.apple.com/app/rizzcheck/id0000000000';
+const APP_STORE_URL = 'https://apps.apple.com/app/rizzcheck';
 const PRIVACY_URL = 'https://rizzcheck.app/privacy';
 const TERMS_URL = 'https://rizzcheck.app/terms';
 const SUPPORT_EMAIL = 'support@rizzcheck.app';
 
 export default function SettingsScreen() {
-  const { user, logout, deleteAccount } = useAuth();
+  const { user, isGuest, logout, deleteAccount, guestDaysRemaining } = useAuth();
   const { handleRestore } = useSubscription();
   const [biometricType, setBiometricType] = useState<string | null>(null);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
@@ -134,9 +134,9 @@ export default function SettingsScreen() {
 
   const handleLogout = () => {
     hapticSelection();
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+    Alert.alert(isGuest ? 'Exit Guest Mode' : 'Sign Out', isGuest ? 'Leave guest preview mode?' : 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: logout },
+      { text: isGuest ? 'Exit' : 'Sign Out', style: 'destructive', onPress: logout },
     ]);
   };
 
@@ -166,6 +166,14 @@ export default function SettingsScreen() {
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=RizzCheck Support Request`);
   };
 
+  const guestRetentionLabel = (() => {
+    if (!isGuest) return '';
+    if (guestDaysRemaining === null) return 'Retention timer unavailable';
+    if (guestDaysRemaining <= 0) return 'Guest data expired and was cleared';
+    if (guestDaysRemaining === 1) return '1 day left before guest data auto-delete';
+    return `${guestDaysRemaining} days left before guest data auto-delete`;
+  })();
+
   return (
     <LinearGradient colors={['#0a0a14', '#1e1e2e', '#2d1b3d']} style={{ flex: 1 }}>
       <SafeAreaView className="flex-1">
@@ -192,15 +200,39 @@ export default function SettingsScreen() {
                   style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' }}
                 >
                   <Text className="text-lg font-bold text-white">
-                    {user?.email?.[0]?.toUpperCase() || '?'}
+                    {isGuest ? 'G' : (user?.email?.[0]?.toUpperCase() || '?')}
                   </Text>
                 </LinearGradient>
                 <View className="ml-4 flex-1">
-                  <Text className="text-base font-medium text-white">{user?.email}</Text>
-                  <Text className="mt-0.5 text-xs text-gray-500">Manage your account</Text>
+                  <Text className="text-base font-medium text-white">
+                    {isGuest ? 'Guest Mode' : user?.email}
+                  </Text>
+                  <Text className="mt-0.5 text-xs text-gray-500">
+                    {isGuest ? 'Create an account to save progress' : 'Manage your account'}
+                  </Text>
                 </View>
               </View>
             </View>
+
+            {isGuest && (
+              <View
+                className={`mb-5 overflow-hidden rounded-3xl border ${
+                  (guestDaysRemaining ?? 30) <= 7 ? 'border-amber-300/25 bg-amber-500/10' : 'border-violet-300/25 bg-violet-500/10'
+                }`}
+              >
+                <View className="p-5">
+                  <Text className={`text-xs font-bold uppercase tracking-widest ${(guestDaysRemaining ?? 30) <= 7 ? 'text-amber-200' : 'text-violet-200'}`}>
+                    Guest Retention
+                  </Text>
+                  <Text className={`mt-2 text-sm ${(guestDaysRemaining ?? 30) <= 7 ? 'text-amber-100' : 'text-violet-100'}`}>
+                    Guest history auto-deletes after 30 days unless you create an account.
+                  </Text>
+                  <Text className={`mt-1 text-sm font-semibold ${(guestDaysRemaining ?? 30) <= 7 ? 'text-amber-200' : 'text-violet-200'}`}>
+                    {guestRetentionLabel}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* Preferences */}
             <SectionHeader title="Preferences" />
@@ -255,23 +287,37 @@ export default function SettingsScreen() {
             {/* Subscription */}
             <SectionHeader title="Subscription" />
             <View className="mb-5 overflow-hidden rounded-3xl border border-white/[0.06]" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
-              <SettingRow
-                icon="diamond-outline"
-                iconColor="#ec4899"
-                label="Upgrade to Pro"
-                subtitle="Unlimited responses & features"
-                onPress={() => { hapticSelection(); router.push('/(protected)/paywall'); }}
-                showChevron
-              />
-              <SettingRow
-                icon="refresh-outline"
-                iconColor="#6366f1"
-                label="Restore Purchases"
-                subtitle="Recover previous subscriptions"
-                onPress={handleRestorePurchases}
-                showChevron
-                last
-              />
+              {isGuest ? (
+                <SettingRow
+                  icon="person-add-outline"
+                  iconColor="#ec4899"
+                  label="Create Free Account"
+                  subtitle="Save history and unlock full AI features"
+                  onPress={() => { hapticSelection(); router.push('/(auth)/register'); }}
+                  showChevron
+                  last
+                />
+              ) : (
+                <>
+                  <SettingRow
+                    icon="diamond-outline"
+                    iconColor="#ec4899"
+                    label="Upgrade to Pro"
+                    subtitle="Unlimited responses & features"
+                    onPress={() => { hapticSelection(); router.push('/(protected)/paywall'); }}
+                    showChevron
+                  />
+                  <SettingRow
+                    icon="refresh-outline"
+                    iconColor="#6366f1"
+                    label="Restore Purchases"
+                    subtitle="Recover previous subscriptions"
+                    onPress={handleRestorePurchases}
+                    showChevron
+                    last
+                  />
+                </>
+              )}
             </View>
 
             {/* Support */}
@@ -344,27 +390,33 @@ export default function SettingsScreen() {
                 <View className="mr-3 h-9 w-9 items-center justify-center rounded-xl bg-red-500/10">
                   <Ionicons name="log-out-outline" size={18} color="#f87171" />
                 </View>
-                <Text className="text-base font-medium text-red-400">Sign Out</Text>
+                <Text className="text-base font-medium text-red-400">
+                  {isGuest ? 'Exit Guest Mode' : 'Sign Out'}
+                </Text>
               </View>
             </TouchableOpacity>
 
             {/* Danger Zone */}
-            <SectionHeader title="Danger Zone" />
-            <View className="rounded-3xl border border-red-500/20 bg-red-500/5">
-              <Pressable className="flex-row items-center p-5" onPress={confirmDelete}>
-                <View className="mr-3 h-9 w-9 items-center justify-center rounded-xl bg-red-500/10">
-                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
+            {!isGuest && (
+              <>
+                <SectionHeader title="Danger Zone" />
+                <View className="rounded-3xl border border-red-500/20 bg-red-500/5">
+                  <Pressable className="flex-row items-center p-5" onPress={confirmDelete}>
+                    <View className="mr-3 h-9 w-9 items-center justify-center rounded-xl bg-red-500/10">
+                      <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                    </View>
+                    <View>
+                      <Text className="text-base font-medium text-red-400">Delete Account</Text>
+                      <Text className="mt-0.5 text-xs text-red-500/60">Permanently remove all your data</Text>
+                    </View>
+                  </Pressable>
                 </View>
-                <View>
-                  <Text className="text-base font-medium text-red-400">Delete Account</Text>
-                  <Text className="mt-0.5 text-xs text-red-500/60">Permanently remove all your data</Text>
-                </View>
-              </Pressable>
-            </View>
+              </>
+            )}
           </View>
         </ScrollView>
 
-        <Modal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Confirm Deletion">
+        <Modal visible={!isGuest && showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Confirm Deletion">
           <Text className="mb-4 text-sm text-gray-400">
             Enter your password to confirm account deletion. This cannot be undone.
           </Text>

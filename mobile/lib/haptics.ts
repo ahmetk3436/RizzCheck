@@ -1,41 +1,60 @@
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
-// Native haptic feedback (Apple Guideline 4.2 - Native Utility).
-// Gracefully no-ops on Android/web where haptics may not be available.
+// Cached haptic enabled state to avoid async lookups on every call.
+// Updated via initHaptics() on app start and setHapticEnabledCache() on toggle.
+let _enabled = true;
+
+export function setHapticEnabledCache(enabled: boolean) {
+  _enabled = enabled;
+}
+
+export function getHapticEnabledCache(): boolean {
+  return _enabled;
+}
+
+/** Call on app start to load persisted haptic preference */
+export async function initHaptics(): Promise<void> {
+  try {
+    const { getHapticEnabled } = await import('./settings');
+    _enabled = await getHapticEnabled();
+  } catch {
+    _enabled = true;
+  }
+}
 
 export const hapticSuccess = () => {
-  if (Platform.OS === 'ios') {
+  if (_enabled && Platform.OS === 'ios') {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 };
 
 export const hapticError = () => {
-  if (Platform.OS === 'ios') {
+  if (_enabled && Platform.OS === 'ios') {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }
 };
 
 export const hapticWarning = () => {
-  if (Platform.OS === 'ios') {
+  if (_enabled && Platform.OS === 'ios') {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   }
 };
 
 export const hapticLight = () => {
-  if (Platform.OS === 'ios') {
+  if (_enabled && Platform.OS === 'ios') {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 };
 
 export const hapticMedium = () => {
-  if (Platform.OS === 'ios') {
+  if (_enabled && Platform.OS === 'ios') {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }
 };
 
 export const hapticSelection = () => {
-  if (Platform.OS === 'ios') {
+  if (_enabled && Platform.OS === 'ios') {
     Haptics.selectionAsync();
   }
 };

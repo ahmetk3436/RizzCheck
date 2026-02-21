@@ -30,15 +30,16 @@ export default function Modal({
       {...props}
     >
       <Pressable
-        className="flex-1 items-center justify-center bg-black/50"
+        className="flex-1 items-center justify-center bg-black/70"
         onPress={onClose}
       >
         <Pressable
-          className="mx-6 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+          className="mx-6 w-full max-w-sm rounded-3xl border border-white/10 p-6"
+          style={{ backgroundColor: '#1e1e2e' }}
           onPress={() => {}}
         >
           {title && (
-            <Text className="mb-4 text-xl font-bold text-gray-900">
+            <Text className="mb-4 text-xl font-bold text-white">
               {title}
             </Text>
           )}
