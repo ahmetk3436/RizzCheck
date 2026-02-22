@@ -102,3 +102,44 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// ─── Remote Config: api_base_url override ───────────────────────────────────
+// On startup, fetches api_base_url from remote config. If set, updates axios
+// instances so ALL subsequent requests go to the new URL — no rebuild needed.
+// Bootstrap URL (above) is still used for the initial config fetch itself.
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const _CACHED_URL_KEY = '@fams_api_base_url';
+
+// Restore cached URL immediately (runs async; first requests use hardcoded URL)
+AsyncStorage.getItem(_CACHED_URL_KEY).then((cached) => {
+  if (!cached) return;
+  _applyApiUrl(cached);
+}).catch(() => {});
+
+function _applyApiUrl(base: string): void {
+  // base is the raw URL without /api or /p suffix, e.g. "http://host:port"
+  const stripped = base.replace(/\/api(\/p)?$/, '');
+  const protectedBase = stripped + '/api/p';
+  const publicBase = stripped + '/api';
+  api.defaults.baseURL = protectedBase;
+  authApi.defaults.baseURL = publicBase;
+}
+
+/** Call once at app startup (fire-and-forget). Updates API URL from remote config. */
+export async function refreshApiBaseUrl(): Promise<void> {
+  try {
+    const res = await fetch(authApi.defaults.baseURL + '/config', {
+      headers: { 'X-App-ID': APP_ID, 'Accept': 'application/json' },
+    });
+    if (!res.ok) return;
+    const data = await res.json() as Record<string, unknown>;
+    const remoteUrl = data?.api_base_url as string | undefined;
+    if (!remoteUrl || typeof remoteUrl !== 'string') return;
+    _applyApiUrl(remoteUrl);
+    await AsyncStorage.setItem(_CACHED_URL_KEY, remoteUrl);
+  } catch {
+    // Silent — hardcoded bootstrap URL is used as fallback
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
