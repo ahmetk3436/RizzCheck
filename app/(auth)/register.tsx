@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
@@ -46,6 +46,7 @@ export default function RegisterScreen() {
     setIsLoading(true);
     try {
       await register(email, password);
+      router.replace('/(protected)/(tabs)');
     } catch (err: any) {
       const msg = err?.message || '';
       if (msg.includes('Network Error')) {

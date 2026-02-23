@@ -12,9 +12,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { hapticSelection, hapticSuccess } from '../../lib/haptics';
+import { useAuth } from '../../contexts/AuthContext';
+import { setOnboardingComplete } from '../../lib/storage';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -67,6 +68,7 @@ const STEPS: OnboardingStep[] = [
 ];
 
 export default function OnboardingScreen() {
+  const { continueAsGuest } = useAuth();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const [currentStep, setCurrentStep] = useState(0);
@@ -98,10 +100,15 @@ export default function OnboardingScreen() {
     }
   };
 
-  const completeOnboarding = async (destination: '/(auth)/register' | '/(auth)/login') => {
+  const completeOnboarding = async (destination: 'guest' | '/(auth)/login') => {
     hapticSuccess();
-    await AsyncStorage.setItem('@onboarding_complete', 'true');
-    router.push(destination);
+    await setOnboardingComplete();
+    if (destination === 'guest') {
+      await continueAsGuest();
+      router.replace('/(protected)/(tabs)');
+    } else {
+      router.push(destination);
+    }
   };
 
   const renderStep = (step: OnboardingStep) => (
@@ -198,7 +205,7 @@ export default function OnboardingScreen() {
       {step.isCTA && (
         <View style={{ marginTop: 40, gap: 14 }}>
           <Pressable
-            onPress={() => completeOnboarding('/(auth)/register')}
+            onPress={() => completeOnboarding('guest')}
             style={{ minHeight: 56 }}
           >
             <LinearGradient

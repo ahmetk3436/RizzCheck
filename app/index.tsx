@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { Redirect } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
+import { getOnboardingComplete } from '../lib/storage';
 
 export default function Index() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isGuest, isLoading } = useAuth();
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem('@onboarding_complete').then((val) => {
-      setOnboardingComplete(val === 'true');
+    getOnboardingComplete().then((val) => {
+      setOnboardingComplete(val);
     });
   }, []);
 
@@ -26,7 +26,7 @@ export default function Index() {
     return <Redirect href="/(auth)/onboarding" />;
   }
 
-  if (isAuthenticated) {
+  if (isAuthenticated || isGuest) {
     return <Redirect href="/(protected)/(tabs)" />;
   }
 

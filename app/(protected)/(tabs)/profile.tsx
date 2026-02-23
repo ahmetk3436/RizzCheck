@@ -25,6 +25,7 @@ export default function ProfileScreen() {
   const { isSubscribed } = useSubscription();
   const [stats, setStats] = useState<RizzStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -32,10 +33,12 @@ export default function ProfileScreen() {
 
   const fetchStats = async () => {
     try {
+      setError(false);
       const res = await api.get('/rizz/stats');
       setStats(res.data);
     } catch (err) {
       console.error('Failed to fetch stats:', err);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -53,6 +56,45 @@ export default function ProfileScreen() {
         : rizzScore < 500
           ? 'Smooth Talker'
           : 'Rizz God';
+
+  if (error) {
+    return (
+      <LinearGradient colors={['#0a0a14', '#12121f', '#1a1a2e']} style={{ flex: 1 }}>
+        <SafeAreaView className="flex-1" edges={['top']}>
+          <View className="flex-1 items-center justify-center px-6">
+            <View
+              className="w-16 h-16 rounded-full items-center justify-center mb-4"
+              style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
+            >
+              <Ionicons name="cloud-offline-outline" size={32} color="#ef4444" />
+            </View>
+            <Text className="text-xl font-bold text-white mb-2">Unable to Load Profile</Text>
+            <Text className="text-sm text-gray-400 text-center mb-6">
+              Something went wrong while loading your profile. Please check your connection and try again.
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                setLoading(true);
+                fetchStats();
+              }}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#ec4899', '#a855f7']}
+                style={{ borderRadius: 16, paddingHorizontal: 32, paddingVertical: 14 }}
+              >
+                {loading ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text className="text-base font-bold text-white">Try Again</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient colors={['#0a0a14', '#12121f', '#1a1a2e']} style={{ flex: 1 }}>

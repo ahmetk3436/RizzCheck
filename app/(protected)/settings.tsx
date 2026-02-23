@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SupportTicketModal from '../../components/ui/SupportTicketModal';
 import {
   View,
   Text,
@@ -47,6 +48,7 @@ export default function SettingsScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -163,7 +165,7 @@ export default function SettingsScreen() {
 
   const handleSupport = () => {
     hapticSelection();
-    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=RizzCheck Support Request`);
+    setShowSupport(true);
   };
 
   return (
@@ -363,6 +365,8 @@ export default function SettingsScreen() {
             </View>
           </View>
         </ScrollView>
+
+        <SupportTicketModal visible={showSupport} onClose={() => setShowSupport(false)} appId="rizzcheck" userEmail={user?.email} />
 
         <Modal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Confirm Deletion">
           <Text className="mb-4 text-sm text-gray-400">

@@ -1,7 +1,19 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Sentry from '@sentry/react-native';
+// Sentry removed - using no-op stub
+const Sentry = {
+  init: () => {},
+  captureException: (e: any) => console.error(e),
+  captureMessage: (m: string) => console.warn(m),
+  setUser: (_u: any) => {},
+  addBreadcrumb: (_b: any) => {},
+  withScope: (cb: any) => cb({ setExtra: () => {}, setTag: () => {} }),
+  Native: { wrap: (c: any) => c },
+  wrap: (c: any) => c,
+  ReactNavigationInstrumentation: class {},
+  ReactNativeTracing: class {},
+};
 
 interface Props {
   children: React.ReactNode;

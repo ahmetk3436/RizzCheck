@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import api from '../../../lib/api';
+import { useAuth } from '../../../contexts/AuthContext';
 import { hapticSuccess, hapticSelection, hapticError } from '../../../lib/haptics';
 import { analyticsEvents, trackEvent } from '../../../lib/analytics';
 import { shareResponseCard } from '../../../lib/share';
@@ -70,6 +71,7 @@ function SkeletonCard({ index }: { index: number }) {
 }
 
 export default function HomeScreen() {
+  const { isAuthenticated, canUseFeature, incrementGuestUsage } = useAuth();
   const [inputText, setInputText] = useState('');
   const [selectedTone, setSelectedTone] = useState('chill');
   const [selectedCategory, setSelectedCategory] = useState('casual');
@@ -127,6 +129,13 @@ export default function HomeScreen() {
       hapticError();
       return;
     }
+    if (!canUseFeature()) {
+      hapticError();
+      setLimitReached(true);
+      trackEvent(analyticsEvents.rizzLimitReached, { source: 'guest_limit' });
+      router.push('/(protected)/paywall');
+      return;
+    }
     trackEvent(analyticsEvents.rizzGenerateRequested, {
       input_length: inputText.length,
       tone: selectedTone,
@@ -150,6 +159,9 @@ export default function HomeScreen() {
       setResponses(newResponses);
       animateResponses(newResponses.length);
       hapticSuccess();
+      if (!isAuthenticated) {
+        await incrementGuestUsage();
+      }
       trackEvent(analyticsEvents.rizzGenerateSucceeded, {
         tone: selectedTone,
         category: selectedCategory,

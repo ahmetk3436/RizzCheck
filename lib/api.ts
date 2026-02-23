@@ -2,6 +2,8 @@ import axios, {
   AxiosError,
   InternalAxiosRequestConfig,
 } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DeviceEventEmitter } from 'react-native';
 import {
   getAccessToken,
   getRefreshToken,
@@ -22,6 +24,25 @@ const api = axios.create({
     'X-App-ID': 'rizzcheck',
   },
 });
+
+const authApi = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+    'X-App-ID': 'rizzcheck',
+  },
+});
+
+type TokenExpiredCallback = () => void;
+let onTokenExpiredCallback: TokenExpiredCallback | null = null;
+
+export function onTokenExpired(callback: TokenExpiredCallback): () => void {
+  onTokenExpiredCallback = callback;
+  return () => {
+    onTokenExpiredCallback = null;
+  };
+}
 
 // Request interceptor: attach access token
 api.interceptors.request.use(
@@ -91,6 +112,10 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         await clearTokens();
+        DeviceEventEmitter.emit('tokenCleared');
+        if (onTokenExpiredCallback) {
+          onTokenExpiredCallback();
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -102,12 +127,12 @@ api.interceptors.response.use(
 );
 
 export default api;
+export { authApi };
 
 // ─── Remote Config: api_base_url override ───────────────────────────────────
 // On startup, fetches api_base_url from remote config. If set, updates axios
 // instances so ALL subsequent requests go to the new URL — no rebuild needed.
 // Bootstrap URL (above) is still used for the initial config fetch itself.
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const _CACHED_URL_KEY = '@fams_api_base_url';
 

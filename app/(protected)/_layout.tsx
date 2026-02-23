@@ -12,7 +12,7 @@ const TABS = [
 ];
 
 export default function ProtectedLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isGuest, isLoading } = useAuth();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
 
@@ -24,7 +24,7 @@ export default function ProtectedLayout() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isGuest) {
     return <Redirect href="/(auth)/login" />;
   }
 

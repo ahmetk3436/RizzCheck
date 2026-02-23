@@ -3,8 +3,10 @@ import Purchases, {
   PurchasesOffering,
   LOG_LEVEL,
 } from 'react-native-purchases';
+import axios from 'axios';
 
 const API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_KEY;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 let isInitialized = false;
 
@@ -68,7 +70,9 @@ export const getOfferings = async (): Promise<PurchasesOffering | null> => {
 export const purchasePackage = async (
   pkg: PurchasesPackage,
 ): Promise<boolean> => {
-  if (!isInitialized) return false;
+  if (!isInitialized) {
+    throw new Error('RevenueCat not initialized. Cannot process purchase. Please restart the app or contact support.');
+  }
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     return customerInfo.entitlements.active.premium !== undefined;
@@ -81,23 +85,43 @@ export const purchasePackage = async (
 };
 
 export const restorePurchases = async (): Promise<boolean> => {
-  if (!isInitialized) return false;
+  if (!isInitialized) {
+    return checkBackendSubscriptionStatus();
+  }
   try {
     const customerInfo = await Purchases.restorePurchases();
     return customerInfo.entitlements.active.premium !== undefined;
   } catch (error) {
     console.error('Restore purchases failed:', error);
+    return checkBackendSubscriptionStatus();
+  }
+};
+
+const checkBackendSubscriptionStatus = async (): Promise<boolean> => {
+  try {
+    const response = await axios.get(`${API_URL}/api/subscription/status`, {
+      timeout: 5000,
+    });
+    return response.data?.isPremium === true || response.data?.active === true;
+  } catch (error) {
+    console.error('Backend subscription check failed:', error);
     return false;
   }
 };
 
 export const checkSubscriptionStatus = async (): Promise<boolean> => {
-  if (!isInitialized) return false;
+  if (!isInitialized) {
+    return checkBackendSubscriptionStatus();
+  }
   try {
     const customerInfo = await Purchases.getCustomerInfo();
-    return customerInfo.entitlements.active.premium !== undefined;
+    const isPremium = customerInfo.entitlements.active.premium !== undefined;
+    if (isPremium) {
+      return true;
+    }
+    return checkBackendSubscriptionStatus();
   } catch (error) {
     console.error('Failed to check subscription status:', error);
-    return false;
+    return checkBackendSubscriptionStatus();
   }
 };

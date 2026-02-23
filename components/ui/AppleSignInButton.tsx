@@ -1,6 +1,7 @@
 import React from 'react';
 import { Platform, View, Text, Pressable } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { router } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { hapticError } from '../../lib/haptics';
 
@@ -39,6 +40,8 @@ export default function AppleSignInButton({ onError }: AppleSignInButtonProps) {
         fullName,
         credential.email || undefined
       );
+      
+      router.replace('/(protected)/(tabs)');
     } catch (err: any) {
       if (err.code === 'ERR_REQUEST_CANCELED') {
         return; // User cancelled

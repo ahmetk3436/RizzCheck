@@ -1,11 +1,12 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "RizzCheck",
+    "slug": "rizzcheck",
     "version": "1.0.0",
+    "owner": "ahmetcoskunkizilkaya",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "appfactory",
+    "scheme": "rizzcheck",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -14,9 +15,20 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ahmetcoskunkizilkaya.rizzcheck",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
+      "package": "com.ahmetcoskunkizilkaya.rizzcheck",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -29,7 +41,17 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      "expo-apple-authentication"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f50ce741-6eea-4a7a-9a43-9c783f6c0b62"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }

@@ -1,0 +1,56 @@
+# EAS Build Optimization - Whitelist approach
+# Ignore everything first, then allow only what's needed
+
+# Ignore everything
+*
+
+# Allow config files
+!app.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!babel.config.js
+!metro.config.js
+!tailwind.config.js
+!global.css
+!nativewind-env.d.ts
+!.env
+!.env.example
+!.npmrc
+!eas.json
+
+# Allow source directories
+!app/
+!app/**
+!assets/
+!assets/**
+!components/
+!components/**
+!contexts/
+!contexts/**
+!lib/
+!lib/**
+!locales/
+!locales/**
+!scripts/
+!scripts/**
+!types/
+!types/**
+
+# Block heavy/unnecessary directories
+node_modules/
+.expo/
+.git/
+ios/
+android/
+__tests__/
+coverage/
+.vscode/
+.idea/
+
+# Block unnecessary files
+*.log
+*.tgz
+*.tar.gz
+*.zip
+*.map
